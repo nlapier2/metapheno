@@ -12,24 +12,24 @@ import classify
 
 
 # define globals
-classifiers = ['svm', 'rf']#, 'xgb', 'gcforest', 'autonn']
+classifiers = ['svm', 'rf', 'xgb', 'gcforest', 'autonn']
 metric_names = ['Accuracy','Precision','Recall','F1 Score', 'AUC-ROC']
-num_folds, num_partitions = 5, 2
+num_folds, num_partitions = 5, 5
 
 # previously-validated best params on T2D data with full grid search
 pre_best_phlan = {
-	'svm': [[0,0,0], 0.75, 'linear'],
-	'rf': [[0,0,0], 10, 50, 'entropy'],
-	'xgb': [[0,0,0], 10, 0.5, 0.5],
-	'gcforest': [[0,0,0], 3, 0],
-	'autonn': [[0,0,0], 1, 5, 0, 'adagrad', 0.001]
+	'svm': [[0,0,0], [0.75, 'linear']],
+	'rf': [[0,0,0], [10, 50, 'entropy']],
+	'xgb': [[0,0,0], [10, 0.5, 0.5]],
+	'gcforest': [[0,0,0], [3, 0]],
+	'autonn': [[0,0,0], [1, 5, 0, 'adagrad', 0.001]]
 }
 pre_best_kmer = {
-	'svm': [[0,0,0], 0.25, 'linear'],
-	'rf': [[0,0,0], 6, 10, 'gini'],
-	'xgb': [[0,0,0], 6, 0, 1.5],
-	'gcforest': [[0,0,0], 5, 0],
-	'autonn': [[0,0,0], 1, 5, 0.25, 'adagrad', 0.001]
+	'svm': [[0,0,0], [0.25, 'linear']],
+	'rf': [[0,0,0], [6, 10, 'gini']],
+	'xgb': [[0,0,0], [6, 0, 1.5]],
+	'gcforest': [[0,0,0], [5, 0]],
+	'autonn': [[0,0,0], [1, 5, 0.25, 'adagrad', 0.001]]
 }
 
 
@@ -38,7 +38,7 @@ def parseargs():    # handle user arguments
 		description = 'Run NN or xgboost on Metaphlan or kmer features.')
 	parser.add_argument('disease', choices=['t2d', 'wt2d'],
 		help='Which disease to analyze')
-	parser.add_argument('--grid_amount', default='comprehensive',
+	parser.add_argument('--grid_search', default='comprehensive',
 		choices = ['none', 'small', 'comprehensive'],
 		help = 'Amount of grid search. Choices: none, small, comprehensive.')
 	parser.add_argument('--seed_search', action='store_true',
@@ -49,14 +49,14 @@ def parseargs():    # handle user arguments
 
 # Setup experiment parameters based on user arguments
 def setup(args):
-	seeds = [0, 2736136]#, 741180, 1057096, 2505548, 8988168] if args.seed_search else [0]
+	seeds = [0, 2736136, 741180, 1057096, 2505548, 8988168] if args.seed_search else [0]
 	feature_dir = args.disease + '_data/random0/'
 	phlan_folds, kmer_folds, kmer_norms = classify.gen_folds_metapheno(feature_dir, num_folds)
 
 	# set hyperparameter options for grid search
 	params = {
-		'svm': [[0.25], ['linear', 'poly']],
-		'rf': [[2], [10], ['gini', 'entropy']],
+		'svm': [[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0], ['linear', 'poly']],
+		'rf': [[2, 6, 10], [10, 50, 100], ['gini', 'entropy']],
 		'xgb': [[2, 6, 10], [0, 0.25, 0.5], [0.5, 1.0, 1.5]],
 		'gcforest': [[3 ,5], [0, 50, 100]],
 		'autonn': [[0,1,2,3], [3,5,10], [0,0.25,0.5], ['sgd','adagrad','adam'], [0.01,0.001]]
@@ -69,7 +69,7 @@ def setup(args):
 		'autonn': ['encoder_layers', 'feedforward_layers', 'dropout',
 						'optimizer', 'learning_rate']
 	}
-	if args.grid_amount == 'small':  # remove some obviously bad options
+	if args.grid_search == 'small':  # remove some obviously bad options
 		params['svm'][1] = ['linear']
 		params['gcforest'][1] = [0]
 		params['autonn'] = [[1,2], [3,5,10], [0,0.25,0.5], ['adagrad','adam'], [0.001]]
@@ -87,7 +87,7 @@ def process_multirun_metrics(multirun_metrics):
 # find best hyperparameters per feature type for each classifier via grid search
 def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds, kmer_norms):
 	print('Running grid search for ' + str(feature_type) + '\n\n\n')
-	best = {clf: [[0,0,0], []] for clf in classifiers}  # best results & params
+	best = {clf: [[[0]], []] for clf in classifiers}  # best results & params
 	for clf in classifiers:
 		# generate all combinations of parameters, and get parameter names
 		param_combos = list(itertools.product(*params[clf]))
@@ -95,7 +95,7 @@ def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds,
 		param_combos = [list(i) for i in param_combos]
 		clf_param_names = param_names[clf]
 		for p in param_combos:
-			fold_accs = []
+			fold_mets = []
 			print('Running ' + clf + ' classifier with parameters: ' +
 					str(clf_param_names) + ' = ' + str(p))
 			for i in range(num_folds):
@@ -114,7 +114,7 @@ def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds,
 
 			# printing information for user
 			multirun_metrics = process_multirun_metrics(fold_mets)
-			for m in range(metric_names):
+			for m in range(len(metric_names)):
 				print(metric_names[m] + ' [mean, SD, variance] : ' + str(multirun_metrics[m]))
 			print('\n\n\n')  # spacing between runs
 
@@ -136,7 +136,7 @@ def seed_partition_search(args, feature_type, best, seeds):
 			np.random.seed(cur_seed)  # set random seed for neural networks
 			for clf in classifiers:
 				clf_best = best[clf][1]  # best parameters for this clf
-				fold_accs = []
+				fold_mets = []
 				print('Running ' + clf + ' classifier with partition: ' +
 						str(foldnum) + ' and random seed ' + str(cur_seed))
 				for i in range(num_folds):
@@ -155,12 +155,11 @@ def seed_partition_search(args, feature_type, best, seeds):
 
 				# printing and recording information
 				multirun_metrics = process_multirun_metrics(fold_mets)
-				for m in range(metric_names):
+				for m in range(len(metric_names)):
 					print(metric_names[m] + ' [mean, SD, variance] : ' + str(multirun_metrics[m]))
 				print('\n\n\n')  # spacing between runs
+				setting = 'Partition ' + str(foldnum) + ' Seed ' + str(cur_seed)
 				all_res[clf].append([setting, multirun_metrics])
-		if feature_type == 'kmer':
-			break  # only perform multi partition analysis for metaphlan
 	return all_res
 
 
@@ -171,13 +170,13 @@ def print_best(best, feature_type, param_names):
 		clf_param_names = param_names[clf]
 		best_params = list(zip(clf_param_names, best[clf][1]))
 		print(clf, 'best parameters:', str(best_params))
-		for m in range(metric_names):
+		for m in range(len(metric_names)):
 			print(metric_names[m] + ' [mean, SD, variance] : ' + str(best[clf][0][m]))
 		print('\n')  # spacing between runs
 
 
 def print_seed_partition_res(feature_type, results, seeds):
-	print('\n\n\n' + str(feature_type) + ' results across settings:')
+	print('\n\n\n' + str(feature_type) + ' results across seed/partition settings:')
 	for clf in classifiers:
 		setting_metrics = [res[1] for res in results[clf]]
 		across_setting_metrics = []
@@ -189,7 +188,7 @@ def print_seed_partition_res(feature_type, results, seeds):
 
 		print('\nMetrics for', clf, 'across settings:')
 		multirun_metrics = process_multirun_metrics(across_setting_metrics)
-		for m in range(metric_names):
+		for m in range(len(metric_names)):
 			print(metric_names[m] + ' [mean, SD, variance] : ' + str(multirun_metrics[m]))
 		print('\n')  # spacing between runs
 
@@ -199,7 +198,7 @@ def main():
 	seeds, params, param_names, phlan_folds, kmer_folds, kmer_norms = setup(args)
 
 	# perform grid search if user desires, otherwise use previously-validated settings
-	if args.grid_amount == 'none':
+	if args.grid_search == 'none':
 		phlan_best = pre_best_phlan
 		kmer_best = pre_best_kmer
 	else:
@@ -213,7 +212,7 @@ def main():
 	kmer_res = seed_partition_search(args, 'kmer', kmer_best, seeds)
 
 	# Now print out results at the end
-	if not (args.grid_amount == 'none'):
+	if not (args.grid_search == 'none'):
 		print_best(phlan_best, 'metaphlan', param_names)
 		print_best(kmer_best, 'kmer', param_names)
 	print_seed_partition_res('metaphlan', phlan_res, seeds)

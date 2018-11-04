@@ -9,5 +9,6 @@ unzip wt2d_data.zip
 python3 run-metapheno.py {t2d OR wt2d}
 ```
 
-You can run a more comprehensive experiment with a parameter grid search and results across multiple random seeds using the --grid\_amount and --seed\_search parameters. Do "python3 run-metapheno.py -h" for help. Even without grid search, the script may take a while to run, especially if GPUs are not available, and searching across seeds or using grid search will increase runtime dramatically, possibly to several days.
- 
+You can run a more comprehensive experiment with a parameter grid search and results across multiple random seeds using the --grid\_search and --seed\_search parameters. Do "python3 run-metapheno.py -h" for help. Even without grid search, the script may take a while to run, especially if GPUs are not available, and searching across seeds or using grid search will increase runtime dramatically, possibly to several days.
+
+Please note that gcforest/deepforest and neural net results may not replicate exactly due to inherent randomness in the classifiers. This should hopefully be mitigated by running them in multiple settings and evaluating metrics across all runs.

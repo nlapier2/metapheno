@@ -118,7 +118,7 @@ def extract_kmer_features(filename):
 			# Here we must be careful because features are in sparse matrix form
 			for item in splits:
 				featnum, featval = item.split(':')
-				feats[int(featnum)-1] = int(featval)
+				feats[int(featnum)-1] = float(featval)
 			data.append(feats)
 	return np.array(data)
 
@@ -190,8 +190,8 @@ def gen_folds_metapheno(feature_dir, num_folds):
 		train_X = extract_kmer_features(train_featfile)
 		test_X = extract_kmer_features(test_featfile)
 		kmer_folds.append([train_X, test_X, train_y, test_y])
-		itrain_X, test_X = normalize_kmer_features(train_X, test_X)
-		kmer_norms.append([[train_X, test_X, train_y, test_y]])
+		train_X, test_X = normalize_kmer_features(train_X, test_X)
+		kmer_norms.append([train_X, test_X, train_y, test_y])
 		# We can parse metaphlan features the same way
 		train_featfile = fold_dir + 'metaphlan_lowest_train.data'
 		test_featfile = fold_dir + 'metaphlan_lowest_test.data'
@@ -319,7 +319,7 @@ def run_autonn(train_X, test_X, train_y, test_y, auto_layers=1, fc_layers=5,
 		train_X, test_X = autoencoder_pretrain(train_X, test_X, auto_layers,
 													opt, lr)
 	metrics = build_and_fit_model(train_X, test_X, train_y, test_y,
-									fc_layers, dropout, opt, lr)[1]
+									fc_layers, dropout, opt, lr)
 	return metrics
 
 
