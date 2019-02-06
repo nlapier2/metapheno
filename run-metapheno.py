@@ -35,7 +35,7 @@ pre_best_kmer = {
 def parseargs():    # handle user arguments
 	parser = argparse.ArgumentParser(
 		description = 'Run NN or xgboost on Metaphlan or kmer features.')
-	parser.add_argument('disease', choices=['obesity', 't2d', 'wt2d', 'wt2d_10folds'],
+	parser.add_argument('disease', choices=['obesity', 't2d'],  #, 'wt2d', 'wt2d_10folds'],
 		help='Which disease to analyze')
 	parser.add_argument('--grid_search', default='comprehensive',
 		choices = ['none', 'small', 'comprehensive'],
