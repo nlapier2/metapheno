@@ -24,7 +24,7 @@ Finally, note that you will need python3, tensorflow, keras, xgboost, gcforest, 
 python extract_metaphlan2_features.py -i MetaPhlAn2_OUTDIR --train t2d_data/random0/Dataset01/train.txt  --test t2d_data/random0/Dataset01/test.txt --train_out t2d_data/random0/Dataset01/metaphlan_lowest_train.data --test_out t2d_data/random0/Dataset01/metaphlan_lowest_test.data
 ```
 
-### Feature Extraction - kmer abundance counted by Jellyfish
+### Feature Extraction - kmer abundance from Jellyfish
 1. Run Jellyfish on the read files to generate kmer counts
 2. Run Jellyfish to count the total number of reads for each sample; save it to readcount_by_jellyfish.txt (filename_\t_readCount)  
 3. Run generate_kmer_candidates.py to generate a list of all possible k-mers
