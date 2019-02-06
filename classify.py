@@ -169,7 +169,8 @@ def gen_folds_metapheno(feature_dir, num_folds):
 	phlan_folds, kmer_folds, kmer_norms = [], [], []
 	for fold_num in range(num_folds):
 		train_X, test_X, train_y, test_y = [], [], [], []
-		fold_dir = feature_dir + 'Dataset0' + str(fold_num+1) + '/'
+		zero = '0' if fold_num < 9 else ''  # zero in dir name if single digit
+		fold_dir = feature_dir + 'Dataset' + zero + str(fold_num+1) + '/'
 
 		# Read labels in for train and test set -- very simple
 		with(open(fold_dir + 'train.txt', 'r')) as trainlabs:
@@ -218,7 +219,7 @@ def gen_eval_metrics(y_true, y_pred, svm_binary=[]):
 				tn += 1.0
 			else:
 				fp += 1.0
-	if tp + fp > 0.0:
+	if tp > 0.0:
 		precision = tp / (tp + fp)
 		recall = tp / (tp + fn)
 		f1 = (2 * precision * recall) / (precision + recall)

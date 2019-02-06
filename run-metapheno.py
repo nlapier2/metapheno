@@ -14,7 +14,6 @@ import classify
 # define globals
 classifiers = ['svm', 'rf', 'xgb', 'gcforest', 'autonn']
 metric_names = ['Accuracy','Precision','Recall','F1 Score', 'AUC-ROC']
-num_folds, num_partitions = 5, 5
 
 # previously-validated best params on T2D data with full grid search
 pre_best_phlan = {
@@ -36,7 +35,7 @@ pre_best_kmer = {
 def parseargs():    # handle user arguments
 	parser = argparse.ArgumentParser(
 		description = 'Run NN or xgboost on Metaphlan or kmer features.')
-	parser.add_argument('disease', choices=['t2d', 'wt2d'],
+	parser.add_argument('disease', choices=['obesity', 't2d', 'wt2d', 'wt2d_10folds'],
 		help='Which disease to analyze')
 	parser.add_argument('--grid_search', default='comprehensive',
 		choices = ['none', 'small', 'comprehensive'],
@@ -51,7 +50,7 @@ def parseargs():    # handle user arguments
 def setup(args):
 	seeds = [0, 2736136, 741180, 1057096, 2505548, 8988168] if args.seed_search else [0]
 	feature_dir = args.disease + '_data/random0/'
-	phlan_folds, kmer_folds, kmer_norms = classify.gen_folds_metapheno(feature_dir, num_folds)
+	phlan_folds, kmer_folds, kmer_norms = classify.gen_folds_metapheno(feature_dir, args.folds)
 
 	# set hyperparameter options for grid search
 	params = {
@@ -85,7 +84,7 @@ def process_multirun_metrics(multirun_metrics):
 
 
 # find best hyperparameters per feature type for each classifier via grid search
-def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds, kmer_norms):
+def find_best_params(args, feature_type, params, param_names, phlan_folds, kmer_folds, kmer_norms):
 	print('Running grid search for ' + str(feature_type) + '\n\n\n')
 	best = {clf: [[[0]], []] for clf in classifiers}  # best results & params
 	for clf in classifiers:
@@ -98,7 +97,7 @@ def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds,
 			fold_mets = []
 			print('Running ' + clf + ' classifier with parameters: ' +
 					str(clf_param_names) + ' = ' + str(p))
-			for i in range(num_folds):
+			for i in range(args.folds):
 				print("Running Cross Validation %d" %(i+1))
 				if feature_type == 'metaphlan':
 					train_X, test_X, train_y, test_y = phlan_folds[i]
@@ -128,9 +127,9 @@ def find_best_params(feature_type, params, param_names, phlan_folds, kmer_folds,
 def seed_partition_search(args, feature_type, best, seeds):
 	print('\n\n\nRunning seed/partition tests for', str(feature_type), '\n\n\n')
 	all_res = {clf:[] for clf in classifiers}  # all results across all settings
-	for foldnum in range(num_partitions):
+	for foldnum in range(args.partitions):
 		feature_dir = args.disease + '_data/random' + str(foldnum) + '/'
-		phlan_folds, kmer_folds, kmer_norms = classify.gen_folds_metapheno(feature_dir, num_folds)
+		phlan_folds, kmer_folds, kmer_norms = classify.gen_folds_metapheno(feature_dir, args.folds)
 
 		for cur_seed in seeds:
 			np.random.seed(cur_seed)  # set random seed for neural networks
@@ -139,7 +138,7 @@ def seed_partition_search(args, feature_type, best, seeds):
 				fold_mets = []
 				print('Running ' + clf + ' classifier with partition: ' +
 						str(foldnum) + ' and random seed ' + str(cur_seed))
-				for i in range(num_folds):
+				for i in range(args.folds):
 					print("Running Cross Validation %d" %(i+1))
 					if feature_type == 'metaphlan':
 						train_X, test_X, train_y, test_y = phlan_folds[i]
@@ -195,6 +194,11 @@ def print_seed_partition_res(feature_type, results, seeds):
 
 def main():
 	args = parseargs()  # get user arguments, set up experiment parameters
+	if args.disease == 'wt2d_10folds':
+		args.folds = 10
+	else:
+		args.folds = 5
+	args.partitions = 5
 	seeds, params, param_names, phlan_folds, kmer_folds, kmer_norms = setup(args)
 
 	# perform grid search if user desires, otherwise use previously-validated settings
@@ -202,8 +206,8 @@ def main():
 		phlan_best = pre_best_phlan
 		kmer_best = pre_best_kmer
 	else:
-		phlan_best = find_best_params('metaphlan', params, param_names, phlan_folds, kmer_folds, kmer_norms)
-		kmer_best = find_best_params('kmer', params, param_names, phlan_folds, kmer_folds, kmer_norms)
+		phlan_best = find_best_params(args, 'metaphlan', params, param_names, phlan_folds, kmer_folds, kmer_norms)
+		kmer_best = find_best_params(args, 'kmer', params, param_names, phlan_folds, kmer_folds, kmer_norms)
 
 	# evaluate results across different random seeds and data partitions
 	print('\n\n\nRunning all settings across random seeds' +
